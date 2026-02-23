@@ -12,6 +12,7 @@ dist/
 .vscode/
 .idea/
 output/
+*.xlsx
 .ipynb_checkpoints/
 specs/
 CLAUDE.md
