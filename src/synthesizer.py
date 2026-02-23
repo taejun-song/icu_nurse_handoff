@@ -1,15 +1,14 @@
 import json
 import pandas as pd
-from src.config import OUTPUT_FRAMEWORK_FILE
+from src.config import OUTPUT_FRAMEWORK
 from src.schemas import InterpreterOutput, SynthesizerOutput
 from src.llm import load_prompt, call_llm, parse_json_response
 
 
 def _load_output_framework() -> str:
-    if not OUTPUT_FRAMEWORK_FILE.exists():
-        return ""
-    df = pd.read_excel(OUTPUT_FRAMEWORK_FILE, engine="openpyxl")
-    return f"\n\n## Output Framework (from Output_Framework.xlsx)\n{df.to_csv(index=False)}"
+    df = pd.DataFrame(OUTPUT_FRAMEWORK)
+    df.columns = ["Level 1", "Level 2", "Level 3"]
+    return f"\n\n## Output Framework\n{df.to_csv(index=False)}"
 
 
 async def synthesize(interpreter_output: InterpreterOutput) -> SynthesizerOutput:
