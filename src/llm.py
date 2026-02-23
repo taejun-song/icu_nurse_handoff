@@ -1,7 +1,6 @@
 import hashlib
 import json
-import anthropic
-from pathlib import Path
+from huggingface_hub import AsyncInferenceClient
 from src.config import LLM_MODEL, LLM_TEMPERATURE, LLM_MAX_TOKENS, PROMPTS_DIR, CACHE_DIR
 
 
@@ -21,15 +20,17 @@ async def call_llm(system_prompt: str, user_content: str) -> str:
     if cache_file.exists():
         cached = json.loads(cache_file.read_text(encoding="utf-8"))
         return cached["response"]
-    client = anthropic.AsyncAnthropic()
-    response = await client.messages.create(
+    client = AsyncInferenceClient()
+    response = await client.chat.completions.create(
         model=LLM_MODEL,
         temperature=LLM_TEMPERATURE,
         max_tokens=LLM_MAX_TOKENS,
-        system=system_prompt,
-        messages=[{"role": "user", "content": user_content}],
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_content},
+        ],
     )
-    text = response.content[0].text
+    text = response.choices[0].message.content
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     cache_file.write_text(json.dumps({"response": text}, ensure_ascii=False), encoding="utf-8")
     return text

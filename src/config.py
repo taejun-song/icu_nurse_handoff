@@ -1,8 +1,6 @@
 from pathlib import Path
-from dotenv import load_dotenv
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
-load_dotenv(ROOT_DIR / ".env")
 DATA_DIR = ROOT_DIR / "data"
 PROMPTS_DIR = ROOT_DIR / "prompts"
 OUTPUT_DIR = ROOT_DIR / "output"
@@ -13,7 +11,7 @@ BASELINE_FILE = DATA_DIR / "Input_Baseline_P1.xlsx"
 INPUT_DATA_FILE = DATA_DIR / "Input_Data_P1.xlsx"
 OUTPUT_FRAMEWORK_FILE = DATA_DIR / "Output_Framework.xlsx"
 
-LLM_MODEL = "claude-sonnet-4-5-20250929"
+LLM_MODEL = "snuh/hari-q3"
 LLM_TEMPERATURE = 0.0
 LLM_MAX_TOKENS = 8192
 
