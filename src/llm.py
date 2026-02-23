@@ -1,5 +1,6 @@
 import hashlib
 import json
+import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from src.config import LLM_MODEL, LLM_TEMPERATURE, LLM_MAX_TOKENS, PROMPTS_DIR, CACHE_DIR
 
@@ -11,8 +12,10 @@ def _load_model():
     global _tokenizer, _model
     if _model is None:
         _tokenizer = AutoTokenizer.from_pretrained(LLM_MODEL)
+        if _tokenizer.pad_token is None:
+            _tokenizer.pad_token = _tokenizer.eos_token
         _model = AutoModelForCausalLM.from_pretrained(
-            LLM_MODEL, torch_dtype="auto", device_map="auto",
+            LLM_MODEL, torch_dtype=torch.bfloat16, device_map="auto",
         )
     return _tokenizer, _model
 
@@ -38,19 +41,21 @@ async def call_llm(system_prompt: str, user_content: str) -> str:
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_content},
     ]
-    import torch
     text_input = tokenizer.apply_chat_template(
         messages, tokenize=False, add_generation_prompt=True,
     )
-    encoded = tokenizer(text_input, return_tensors="pt")
-    input_ids = encoded["input_ids"].to(model.device)
-    output_ids = model.generate(
-        input_ids,
-        max_new_tokens=LLM_MAX_TOKENS,
-        temperature=LLM_TEMPERATURE or 1e-7,
-        do_sample=LLM_TEMPERATURE > 0,
-    )
-    new_tokens = output_ids[0][input_ids.shape[-1]:]
+    encoded = tokenizer(text_input, return_tensors="pt").to(model.device)
+    gen_kwargs = {
+        "max_new_tokens": LLM_MAX_TOKENS,
+        "pad_token_id": tokenizer.pad_token_id,
+    }
+    if LLM_TEMPERATURE > 0:
+        gen_kwargs["do_sample"] = True
+        gen_kwargs["temperature"] = LLM_TEMPERATURE
+    else:
+        gen_kwargs["do_sample"] = False
+    output_ids = model.generate(**encoded, **gen_kwargs)
+    new_tokens = output_ids[0][encoded["input_ids"].shape[-1]:]
     text = tokenizer.decode(new_tokens, skip_special_tokens=True)
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     cache_file.write_text(json.dumps({"response": text}, ensure_ascii=False), encoding="utf-8")
