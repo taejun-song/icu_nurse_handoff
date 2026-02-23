@@ -1,7 +1,20 @@
 import hashlib
 import json
-from huggingface_hub import AsyncInferenceClient
+from transformers import AutoTokenizer, AutoModelForCausalLM
 from src.config import LLM_MODEL, LLM_TEMPERATURE, LLM_MAX_TOKENS, PROMPTS_DIR, CACHE_DIR
+
+_tokenizer = None
+_model = None
+
+
+def _load_model():
+    global _tokenizer, _model
+    if _model is None:
+        _tokenizer = AutoTokenizer.from_pretrained(LLM_MODEL)
+        _model = AutoModelForCausalLM.from_pretrained(
+            LLM_MODEL, torch_dtype="auto", device_map="auto",
+        )
+    return _tokenizer, _model
 
 
 def load_prompt(filename: str) -> str:
@@ -20,17 +33,22 @@ async def call_llm(system_prompt: str, user_content: str) -> str:
     if cache_file.exists():
         cached = json.loads(cache_file.read_text(encoding="utf-8"))
         return cached["response"]
-    client = AsyncInferenceClient()
-    response = await client.chat.completions.create(
-        model=LLM_MODEL,
-        temperature=LLM_TEMPERATURE,
-        max_tokens=LLM_MAX_TOKENS,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_content},
-        ],
+    tokenizer, model = _load_model()
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_content},
+    ]
+    input_ids = tokenizer.apply_chat_template(
+        messages, tokenize=True, add_generation_prompt=True, return_tensors="pt",
+    ).to(model.device)
+    output_ids = model.generate(
+        input_ids,
+        max_new_tokens=LLM_MAX_TOKENS,
+        temperature=LLM_TEMPERATURE or 1e-7,
+        do_sample=LLM_TEMPERATURE > 0,
     )
-    text = response.choices[0].message.content
+    new_tokens = output_ids[0][input_ids.shape[-1]:]
+    text = tokenizer.decode(new_tokens, skip_special_tokens=True)
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     cache_file.write_text(json.dumps({"response": text}, ensure_ascii=False), encoding="utf-8")
     return text
