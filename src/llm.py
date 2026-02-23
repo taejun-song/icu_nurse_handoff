@@ -39,10 +39,11 @@ async def call_llm(system_prompt: str, user_content: str) -> str:
         {"role": "user", "content": user_content},
     ]
     import torch
-    ids = tokenizer.apply_chat_template(
-        messages, tokenize=True, add_generation_prompt=True,
+    text_input = tokenizer.apply_chat_template(
+        messages, tokenize=False, add_generation_prompt=True,
     )
-    input_ids = torch.tensor([ids], device=model.device)
+    encoded = tokenizer(text_input, return_tensors="pt")
+    input_ids = encoded["input_ids"].to(model.device)
     output_ids = model.generate(
         input_ids,
         max_new_tokens=LLM_MAX_TOKENS,
