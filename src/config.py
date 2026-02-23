@@ -11,7 +11,7 @@ BASELINE_FILE = DATA_DIR / "Input_Baseline_P1.xlsx"
 INPUT_DATA_FILE = DATA_DIR / "Input_Data_P1.xlsx"
 OUTPUT_FRAMEWORK_FILE = DATA_DIR / "Output_Framework.xlsx"
 
-LLM_MODEL = "snuh/hari-q3"
+LLM_MODEL = "snuh/hari-q3-14b"
 LLM_TEMPERATURE = 0.0
 LLM_MAX_TOKENS = 8192
 
