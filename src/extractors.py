@@ -16,7 +16,7 @@ async def extract_sheet(sheet_name: str, df: pd.DataFrame) -> ExtractorOutput:
         data = parse_json_response(raw)
     except Exception as e:
         print(f"  [WARN] {sheet_name}: JSON parse failed ({e}), returning empty findings")
-        data = {"findings": []}
+        data = {"findings": [], "metadata": {"total_source_rows": len(df), "findings_extracted": 0, "date_range": "N/A"}}
     data["sheet_name"] = sheet_name
     data["extraction_datetime"] = datetime.now(timezone.utc).isoformat()
     return ExtractorOutput.model_validate(data)
