@@ -5,43 +5,49 @@
 ## 입력 스키마
 컬럼: Datetime, Type, Order, Comment
 
-Comment는 대부분 null입니다. Order에는 약품명과 제형 정보가 포함되어 있습니다.
+- Order: 약품명, 용량, 투여 경로, 빈도가 포함된 텍스트
+- Comment: 대부분 null. 값이 있으면 임상적 근거이므로 반드시 포함
+- Type: 처방 유형 (아래 매핑 참조)
 
-## 작업
-새로운 투약, 중단된 투약, 용량/빈도 변경을 추출합니다.
+## Type 컬럼 → 카테고리 매핑
+Type 컬럼에 다음 키워드가 포함되어 있으면 해당 카테고리를 사용:
+- "신규", "신규처방", "New", "추가" → **medication_new**
+- "중단", "DC", "D/C", "중지", "취소" → **medication_stopped**
+- "변경", "수정", "감량", "증량" → **medication_dose_change**
+- "빈도변경" → **medication_frequency_change**
+- 위 키워드가 없으면 → **medication_new** (기본값)
 
 ## 추출 규칙
-- 임상적으로 중요한 내용만 추출: 투약 변경 (신규, 중단, 변경)
-- Order 컬럼에서 투약 상세 정보 확인
-- Comment가 있는 경우 포함 (임상적 근거가 포함될 수 있음)
-- Type 컬럼으로 처방 유형 확인 (신규, 중단, 변경)
+- 동일 (Datetime, Order) 쌍은 1개의 finding만 생성 (중복 제거)
+- Order 필드 전체를 content에 포함 (약품명, 용량, 경로, 빈도)
+- Comment가 null이 아니면 content에 괄호로 추가
+- Type 원본 값을 content 앞에 [Type] 형태로 포함
 - 원본 언어(한국어/영어 혼용) 그대로 보존
-- Datetime 컬럼을 사용하여 시간 기준 참조
-- Order 필드에서 약품명, 용량, 투여 경로, 빈도 포함
 
-## 임상적으로 중요한 내용
-- 새로운 투약 시작
-- 투약 중단
-- 용량 변경
-- 빈도 변경
-- 투여 경로 변경
-- 제형 변경
-- 처방 조치를 나타내는 Type 필드
+## 예시
 
-## 건너뛸 항목
-- 변경 없는 지속 처방 (명확히 일상적인 경우)
-- 동일 약품/용량의 중복 항목
+입력 행:
+| Datetime | Type | Order | Comment |
+|---|---|---|---|
+| 2024-01-15T08:00 | 신규처방 | Vancomycin 1g IV q12h | 혈액배양 결과 확인 후 |
+| 2024-01-15T08:00 | 중단 | Ceftriaxone 2g IV q24h | |
+| 2024-01-15T10:00 | 변경 | Norepinephrine 0.05 → 0.1 mcg/kg/min | 혈압 저하 |
+
+기대 출력 findings:
+[
+  {"datetime": "2024-01-15T08:00", "content": "[신규처방] Vancomycin 1g IV q12h (혈액배양 결과 확인 후)", "category": "medication_new"},
+  {"datetime": "2024-01-15T08:00", "content": "[중단] Ceftriaxone 2g IV q24h", "category": "medication_stopped"},
+  {"datetime": "2024-01-15T10:00", "content": "[변경] Norepinephrine 0.05 → 0.1 mcg/kg/min (혈압 저하)", "category": "medication_dose_change"}
+]
 
 ## 출력 형식
 유효한 JSON만 반환:
 {
-  "sheet_name": "Medication Orders",
-  "extraction_datetime": "ISO8601",
   "findings": [
     {
       "datetime": "ISO8601 or null",
-      "content": "약품명, 조치(신규/중단/변경), 용량, 투여 경로, 빈도",
-      "category": "설명적 카테고리"
+      "content": "[Type] 약품명 용량 경로 빈도 (Comment)",
+      "category": "medication_new|medication_stopped|medication_dose_change|medication_frequency_change"
     }
   ],
   "metadata": {
@@ -50,9 +56,6 @@ Comment는 대부분 null입니다. Order에는 약품명과 제형 정보가 �
     "date_range": "YYYY-MM-DD to YYYY-MM-DD"
   }
 }
-
-## 카테고리
-다음 카테고리 사용: "medication_new", "medication_stopped", "medication_dose_change", "medication_frequency_change"
 
 ## 금지 사항
 - 서술형 산문이나 요약 금지
