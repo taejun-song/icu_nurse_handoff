@@ -62,46 +62,6 @@ async def call_llm(system_prompt: str, user_content: str) -> str:
     return text
 
 
-def _repair_truncated_json(text: str) -> str:
-    open_braces = 0
-    open_brackets = 0
-    in_string = False
-    escape = False
-    last_valid = 0
-    for i, ch in enumerate(text):
-        if escape:
-            escape = False
-            continue
-        if ch == "\\":
-            escape = True
-            continue
-        if ch == '"':
-            in_string = not in_string
-            continue
-        if in_string:
-            continue
-        if ch == "{":
-            open_braces += 1
-        elif ch == "}":
-            open_braces -= 1
-        elif ch == "[":
-            open_brackets += 1
-        elif ch == "]":
-            open_brackets -= 1
-        if open_braces == 0 and open_brackets == 0:
-            last_valid = i + 1
-            break
-    if last_valid > 0:
-        return text[:last_valid]
-    if open_braces == 0 and open_brackets == 0:
-        return text
-    if in_string:
-        text += '"'
-    text = text.rstrip().rstrip(",")
-    text += "]" * open_brackets + "}" * open_braces
-    return text
-
-
 def parse_json_response(text: str) -> dict:
     import re
     text = text.strip()
@@ -112,13 +72,31 @@ def parse_json_response(text: str) -> dict:
         match = re.search(r"(\{.*)", text, re.DOTALL)
         if match:
             text = match.group(1)
-    text = _repair_truncated_json(text)
     try:
         return json.loads(text)
     except json.JSONDecodeError:
-        text = re.sub(r',\s*([}\]])', r'\1', text)
-        try:
-            return json.loads(text)
-        except json.JSONDecodeError:
-            print(f"[LLM] Failed to parse JSON. Raw output:\n{text[:500]}")
-            raise
+        pass
+    # Try raw_decode to get the first valid object
+    try:
+        decoder = json.JSONDecoder()
+        obj, _ = decoder.raw_decode(text)
+        return obj
+    except json.JSONDecodeError:
+        pass
+    suffixes = ["", "]}", "]}"]
+    last_good = -1
+    good_suffix = ""
+    for m in re.finditer(r'\}', text):
+        candidate = text[:m.end()]
+        for suffix in suffixes:
+            try:
+                json.loads(candidate + suffix)
+                last_good = m.end()
+                good_suffix = suffix
+                break
+            except json.JSONDecodeError:
+                continue
+    if last_good > 0:
+        return json.loads(text[:last_good] + good_suffix)
+    print(f"[LLM] Failed to parse JSON. Raw output:\n{text[:500]}")
+    raise json.JSONDecodeError("Could not repair truncated JSON", text, 0)
