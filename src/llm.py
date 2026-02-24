@@ -63,16 +63,17 @@ async def call_llm(system_prompt: str, user_content: str) -> str:
 
 
 def parse_json_response(text: str) -> dict:
+    import re
     text = text.strip()
-    if text.startswith("```"):
-        lines = text.split("\n")
-        start = 1
-        end = len(lines) - 1
-        if lines[0].startswith("```json"):
-            start = 1
-        for i in range(len(lines) - 1, 0, -1):
-            if lines[i].strip() == "```":
-                end = i
-                break
-        text = "\n".join(lines[start:end])
-    return json.loads(text)
+    fence = re.search(r"```(?:json)?\s*\n(.*?)```", text, re.DOTALL)
+    if fence:
+        text = fence.group(1).strip()
+    if not text.startswith("{") and not text.startswith("["):
+        match = re.search(r"(\{.*\}|\[.*\])", text, re.DOTALL)
+        if match:
+            text = match.group(1)
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        print(f"[LLM] Failed to parse JSON. Raw output:\n{text[:500]}")
+        raise
