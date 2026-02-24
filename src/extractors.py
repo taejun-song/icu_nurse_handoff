@@ -136,6 +136,7 @@ async def extract_sheet(sheet_name: str, df: pd.DataFrame) -> ExtractorOutput:
     except Exception as e:
         print(f"  [WARN] {sheet_name}: JSON parse failed ({e}), returning empty findings")
         data = {"findings": []}
+    data.setdefault("findings", [])
     data["sheet_name"] = sheet_name
     data["extraction_datetime"] = datetime.now(timezone.utc).isoformat()
     data.setdefault("metadata", {
