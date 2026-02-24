@@ -62,6 +62,42 @@ async def call_llm(system_prompt: str, user_content: str) -> str:
     return text
 
 
+def _repair_truncated_json(text: str) -> str:
+    open_braces = 0
+    open_brackets = 0
+    in_string = False
+    escape = False
+    last_valid = 0
+    for i, ch in enumerate(text):
+        if escape:
+            escape = False
+            continue
+        if ch == "\\":
+            escape = True
+            continue
+        if ch == '"':
+            in_string = not in_string
+            continue
+        if in_string:
+            continue
+        if ch == "{":
+            open_braces += 1
+        elif ch == "}":
+            open_braces -= 1
+        elif ch == "[":
+            open_brackets += 1
+        elif ch == "]":
+            open_brackets -= 1
+        if open_braces == 0 and open_brackets == 0:
+            last_valid = i + 1
+            break
+    if last_valid > 0:
+        return text[:last_valid]
+    text = text.rstrip().rstrip(",")
+    text += "]}" * 0 + "]" * open_brackets + "}" * open_braces
+    return text
+
+
 def parse_json_response(text: str) -> dict:
     import re
     text = text.strip()
@@ -69,11 +105,16 @@ def parse_json_response(text: str) -> dict:
     if fence:
         text = fence.group(1).strip()
     if not text.startswith("{") and not text.startswith("["):
-        match = re.search(r"(\{.*\}|\[.*\])", text, re.DOTALL)
+        match = re.search(r"(\{.*)", text, re.DOTALL)
         if match:
             text = match.group(1)
+    text = _repair_truncated_json(text)
     try:
         return json.loads(text)
     except json.JSONDecodeError:
-        print(f"[LLM] Failed to parse JSON. Raw output:\n{text[:500]}")
-        raise
+        text = re.sub(r',\s*([}\]])', r'\1', text)
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            print(f"[LLM] Failed to parse JSON. Raw output:\n{text[:500]}")
+            raise
