@@ -12,7 +12,11 @@ async def extract_sheet(sheet_name: str, df: pd.DataFrame) -> ExtractorOutput:
     system_prompt = load_prompt(prompt_file)
     user_content = serialize_dataframe(df, sheet_name)
     raw = await call_llm(system_prompt, user_content)
-    data = parse_json_response(raw)
+    try:
+        data = parse_json_response(raw)
+    except Exception as e:
+        print(f"  [WARN] {sheet_name}: JSON parse failed ({e}), returning empty findings")
+        data = {"findings": []}
     data["sheet_name"] = sheet_name
     data["extraction_datetime"] = datetime.now(timezone.utc).isoformat()
     return ExtractorOutput.model_validate(data)

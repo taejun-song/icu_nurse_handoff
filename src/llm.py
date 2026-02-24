@@ -93,8 +93,12 @@ def _repair_truncated_json(text: str) -> str:
             break
     if last_valid > 0:
         return text[:last_valid]
+    if open_braces == 0 and open_brackets == 0:
+        return text
+    if in_string:
+        text += '"'
     text = text.rstrip().rstrip(",")
-    text += "]}" * 0 + "]" * open_brackets + "}" * open_braces
+    text += "]" * open_brackets + "}" * open_braces
     return text
 
 
