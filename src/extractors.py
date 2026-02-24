@@ -19,11 +19,11 @@ async def extract_sheet(sheet_name: str, df: pd.DataFrame) -> ExtractorOutput:
 
 
 async def extract_all(data_sheets: dict[str, pd.DataFrame]) -> list[ExtractorOutput]:
-    tasks = []
-    for name, df in data_sheets.items():
-        if df.empty:
-            continue
-        if name not in SHEET_NAME_TO_PROMPT:
-            continue
-        tasks.append(extract_sheet(name, df))
-    return await asyncio.gather(*tasks)
+    results = []
+    sheets = [(n, df) for n, df in data_sheets.items() if not df.empty and n in SHEET_NAME_TO_PROMPT]
+    for i, (name, df) in enumerate(sheets, 1):
+        print(f"  [{i}/{len(sheets)}] Extracting: {name} ({len(df)} rows)...")
+        result = await extract_sheet(name, df)
+        print(f"  [{i}/{len(sheets)}] Done: {name} → {len(result.findings)} findings")
+        results.append(result)
+    return results

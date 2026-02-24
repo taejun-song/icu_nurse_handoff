@@ -29,7 +29,7 @@ OUTPUT_SECTIONS = [row["level_1"] for row in OUTPUT_FRAMEWORK]
 
 LLM_MODEL = "snuh/hari-q3-8b"
 LLM_TEMPERATURE = 0.0
-LLM_MAX_TOKENS = 8192
+LLM_MAX_TOKENS = 4096
 
 SHEET_NAMES = [
     "Physician Notes",
