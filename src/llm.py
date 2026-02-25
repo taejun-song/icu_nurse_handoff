@@ -64,6 +64,8 @@ async def call_llm(system_prompt: str, user_content: str) -> str:
 
 def parse_json_response(text: str) -> dict:
     import re
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
+    text = re.sub(r"<think>.*", "", text, flags=re.DOTALL)
     text = text.strip()
     fence = re.search(r"```(?:json)?\s*\n(.*?)```", text, re.DOTALL)
     if fence:
