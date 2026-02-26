@@ -1,5 +1,5 @@
 [project]
-name = "emr-icu-handover"
+name = "icu_nurse_handoff"
 version = "0.1.0"
 description = "Multi-agent clinical handoff summarization from heterogeneous EMR Excel inputs"
 requires-python = ">=3.11"
