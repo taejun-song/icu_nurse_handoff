@@ -26,4 +26,11 @@ async def interpret(
     )
     raw = await call_llm(system_prompt, user_content)
     data = parse_json_response(raw)
+    data.setdefault("reconciled_findings", [])
+    data.setdefault("conflicts_resolved", [])
+    data.setdefault("duplicates_removed", 0)
+    data.setdefault("metadata", {
+        "total_input_findings": sum(len(eo.findings) for eo in extractor_outputs),
+        "total_output_findings": len(data["reconciled_findings"]),
+    })
     return InterpreterOutput.model_validate(data)
