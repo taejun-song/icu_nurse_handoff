@@ -1,4 +1,5 @@
 import json
+import re
 from src.schemas import ValidatorOutput, GeneratorOutput
 from src.llm import load_prompt, call_llm, parse_json_response
 
@@ -7,7 +8,15 @@ async def generate(validator_output: ValidatorOutput) -> GeneratorOutput:
     system_prompt = load_prompt("generator.md")
     user_content = json.dumps(validator_output.model_dump(), ensure_ascii=False, indent=2)
     raw = await call_llm(system_prompt, user_content)
-    data = parse_json_response(raw)
+    raw = re.sub(r"<think>.*?</think>", "", raw, flags=re.DOTALL)
+    raw = re.sub(r"<think>.*", "", raw, flags=re.DOTALL)
+    raw = raw.strip()
+    try:
+        data = parse_json_response(raw)
+    except (json.JSONDecodeError, Exception):
+        data = {"summary": raw}
+    if isinstance(data, str):
+        data = {"summary": data}
     data.setdefault("summary", "")
     data.setdefault("metadata", {
         "total_findings_used": len(validator_output.validated_findings),
