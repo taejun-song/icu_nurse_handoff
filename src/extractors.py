@@ -139,6 +139,15 @@ async def extract_sheet(sheet_name: str, df: pd.DataFrame) -> ExtractorOutput:
     if isinstance(data, list):
         data = {"findings": data}
     data.setdefault("findings", [])
+    normalized = []
+    for f in data["findings"]:
+        if isinstance(f, dict) and "content" not in f:
+            dt = f.pop("Datetime", f.pop("datetime", None))
+            content = " | ".join(f"{k}: {v}" for k, v in f.items() if v not in (None, "unknown", ""))
+            normalized.append({"datetime": dt, "content": content, "category": sheet_name})
+        else:
+            normalized.append(f)
+    data["findings"] = normalized
     data["sheet_name"] = sheet_name
     data["extraction_datetime"] = datetime.now(timezone.utc).isoformat()
     data.setdefault("metadata", {
