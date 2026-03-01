@@ -45,11 +45,13 @@ class InterpreterOutput(BaseModel):
     metadata: InterpreterMetadata
 
 
-class SynthesizerMetadata(BaseModel):
-    findings_incorporated: int
-    date_range: str
+class ValidatorOutput(BaseModel):
+    validated_findings: list[ReconciledFinding]
+    missing_findings: list[dict]
+    unresolved_conflicts: list[dict]
+    metadata: dict
 
 
-class SynthesizerOutput(BaseModel):
+class GeneratorOutput(BaseModel):
     summary: str
-    metadata: SynthesizerMetadata
+    metadata: dict
