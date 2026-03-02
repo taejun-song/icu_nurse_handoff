@@ -20,6 +20,19 @@ def _load_model():
     return _tokenizer, _model
 
 
+def unload_model():
+    global _tokenizer, _model
+    if _model is not None:
+        del _model
+        _model = None
+    _tokenizer = None
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        torch.cuda.synchronize()
+    import gc
+    gc.collect()
+
+
 def load_prompt(filename: str) -> str:
     path = PROMPTS_DIR / filename
     return path.read_text(encoding="utf-8").strip()

@@ -110,6 +110,9 @@ def main() -> None:
             sys.exit(130)
         except Exception as e:
             print(f"\n[ERROR] {pid} failed: {e}", file=sys.stderr)
+        finally:
+            from src.llm import unload_model
+            unload_model()
             failed.append(pid)
             continue
         print()
