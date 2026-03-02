@@ -43,8 +43,11 @@ async def call_llm(system_prompt: str, user_content: str) -> str:
     ]
     text_input = tokenizer.apply_chat_template(
         messages, tokenize=False, add_generation_prompt=True,
+        enable_thinking=False,
     )
     encoded = tokenizer(text_input, return_tensors="pt").to(model.device)
+    input_len = encoded["input_ids"].shape[-1]
+    print(f"  [LLM] Input: {input_len} tokens, generating up to {LLM_MAX_TOKENS} tokens...")
     gen_kwargs = {
         "max_new_tokens": LLM_MAX_TOKENS,
         "pad_token_id": tokenizer.pad_token_id,
