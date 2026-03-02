@@ -10,9 +10,14 @@ async def interpret(
     baseline_sheets: dict[str, pd.DataFrame],
 ) -> InterpreterOutput:
     system_prompt = load_prompt("interpreter.md")
-    extractions_json = json.dumps(
-        [eo.model_dump() for eo in extractor_outputs], ensure_ascii=False, indent=2
-    )
+    compact = [
+        {
+            "sheet_name": eo.sheet_name,
+            "findings": [{"datetime": f.datetime, "content": f.content, "category": f.category} for f in eo.findings],
+        }
+        for eo in extractor_outputs if eo.findings
+    ]
+    extractions_json = json.dumps(compact, ensure_ascii=False)
     baseline_parts = []
     for name, df in baseline_sheets.items():
         if not df.empty:

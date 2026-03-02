@@ -15,7 +15,7 @@ def _load_model():
         if _tokenizer.pad_token is None:
             _tokenizer.pad_token = _tokenizer.eos_token
         _model = AutoModelForCausalLM.from_pretrained(
-            LLM_MODEL, torch_dtype=torch.bfloat16, device_map="auto",
+            LLM_MODEL, dtype=torch.bfloat16, device_map="auto",
         )
     return _tokenizer, _model
 
