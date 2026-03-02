@@ -1,6 +1,7 @@
 import argparse
 import asyncio
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -9,31 +10,31 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="ICU Nurse Handoff Pipeline — batch processing script",
     )
-    parser.add_argument("baseline_file", help="Path to Baseline Excel file (.xlsx)")
-    parser.add_argument("data_file", help="Path to Data Excel file (.xlsx)")
-    parser.add_argument("--output-dir", default=None, help="Output directory (default: <project>/output)")
+    parser.add_argument("data_dir", help="Directory containing Input_Baseline_P*.xlsx and Input_Data_P*.xlsx files")
+    parser.add_argument("--output-dir", default=None, help="Output root directory (default: <project>/output)")
+    parser.add_argument("--patient", "-p", default=None, help="Process a single patient ID (e.g. P1, P3)")
     return parser.parse_args()
 
 
-def validate_inputs(args: argparse.Namespace) -> tuple[Path, Path, Path]:
-    baseline = Path(args.baseline_file)
-    data = Path(args.data_file)
-    errors = []
-    for label, p in [("Baseline", baseline), ("Data", data)]:
-        if not p.exists():
-            errors.append(f"{label} file not found: {p}")
-        elif p.suffix.lower() != ".xlsx":
-            errors.append(f"{label} file is not an .xlsx file: {p}")
-    if errors:
-        for e in errors:
-            print(f"[ERROR] {e}", file=sys.stderr)
+def discover_pairs(data_dir: Path, patient_filter: str | None = None) -> list[tuple[str, Path, Path]]:
+    baselines = sorted(data_dir.glob("Input_Baseline_P*.xlsx"))
+    pairs = []
+    for bp in baselines:
+        m = re.search(r"P(\d+)", bp.name)
+        if not m:
+            continue
+        pid = f"P{m.group(1)}"
+        if patient_filter and pid != patient_filter:
+            continue
+        dp = data_dir / f"Input_Data_{pid}.xlsx"
+        if not dp.exists():
+            print(f"[WARN] Data file missing for {pid}: {dp.name}", file=sys.stderr)
+            continue
+        pairs.append((pid, bp, dp))
+    if not pairs:
+        print(f"[ERROR] No matching Baseline/Data pairs found in {data_dir}", file=sys.stderr)
         sys.exit(1)
-    if args.output_dir:
-        output_dir = Path(args.output_dir)
-    else:
-        from src.config import OUTPUT_DIR
-        output_dir = OUTPUT_DIR
-    return baseline, data, output_dir
+    return pairs
 
 
 async def run_pipeline(baseline_path: Path, data_path: Path, output_dir: Path) -> None:
@@ -83,14 +84,39 @@ async def run_pipeline(baseline_path: Path, data_path: Path, output_dir: Path) -
 
 def main() -> None:
     args = parse_args()
-    baseline, data, output_dir = validate_inputs(args)
-    try:
-        asyncio.run(run_pipeline(baseline, data, output_dir))
-    except KeyboardInterrupt:
-        print("\nInterrupted.", file=sys.stderr)
-        sys.exit(130)
-    except Exception as e:
-        print(f"\n[ERROR] Pipeline failed: {e}", file=sys.stderr)
+    data_dir = Path(args.data_dir)
+    if not data_dir.is_dir():
+        print(f"[ERROR] Not a directory: {data_dir}", file=sys.stderr)
+        sys.exit(1)
+    if args.output_dir:
+        output_root = Path(args.output_dir)
+    else:
+        from src.config import OUTPUT_DIR
+        output_root = OUTPUT_DIR
+    pairs = discover_pairs(data_dir, args.patient)
+    print(f"Found {len(pairs)} patient(s): {', '.join(pid for pid, _, _ in pairs)}\n")
+    failed = []
+    for i, (pid, bp, dp) in enumerate(pairs, 1):
+        print(f"{'='*60}")
+        print(f"[{i}/{len(pairs)}] Processing {pid}")
+        print(f"  Baseline: {bp.name}")
+        print(f"  Data:     {dp.name}")
+        print(f"{'='*60}")
+        patient_output = output_root / pid
+        try:
+            asyncio.run(run_pipeline(bp, dp, patient_output))
+        except KeyboardInterrupt:
+            print("\nInterrupted.", file=sys.stderr)
+            sys.exit(130)
+        except Exception as e:
+            print(f"\n[ERROR] {pid} failed: {e}", file=sys.stderr)
+            failed.append(pid)
+            continue
+        print()
+    print(f"{'='*60}")
+    print(f"Done. {len(pairs) - len(failed)}/{len(pairs)} patients succeeded.")
+    if failed:
+        print(f"Failed: {', '.join(failed)}")
         sys.exit(2)
 
 
