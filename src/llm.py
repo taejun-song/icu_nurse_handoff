@@ -82,7 +82,7 @@ async def call_llm(system_prompt: str, user_content: str, max_tokens: int | None
     if not text.strip():
         print(f"  [LLM] WARNING: Empty output from model")
     del encoded, output_ids, new_tokens
-    torch.cuda.empty_cache()
+    unload_model()
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     cache_file.write_text(json.dumps({"response": text}, ensure_ascii=False), encoding="utf-8")
     return text
