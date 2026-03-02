@@ -61,6 +61,9 @@ async def call_llm(system_prompt: str, user_content: str, max_tokens: int | None
     output_ids = model.generate(**encoded, **gen_kwargs)
     new_tokens = output_ids[0][encoded["input_ids"].shape[-1]:]
     text = tokenizer.decode(new_tokens, skip_special_tokens=True)
+    print(f"  [LLM] Output: {len(new_tokens)} tokens, {len(text)} chars")
+    if not text.strip():
+        print(f"  [LLM] WARNING: Empty output from model")
     del encoded, output_ids, new_tokens
     torch.cuda.empty_cache()
     CACHE_DIR.mkdir(parents=True, exist_ok=True)

@@ -23,7 +23,11 @@ async def validate(
         f"{baseline_text}"
     )
     raw = await call_llm(system_prompt, user_content, max_tokens=2048)
-    data = parse_json_response(raw)
+    try:
+        data = parse_json_response(raw)
+    except Exception as e:
+        print(f"  [Validator] JSON parse failed ({e}), passing through interpreter findings")
+        data = {}
     data.setdefault("validated_findings", data.get("reconciled_findings", []))
     data.setdefault("missing_findings", [])
     data.setdefault("unresolved_conflicts", [])

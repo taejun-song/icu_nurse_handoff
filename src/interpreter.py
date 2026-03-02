@@ -30,7 +30,11 @@ async def interpret(
         f"{baseline_text}"
     )
     raw = await call_llm(system_prompt, user_content, max_tokens=2048)
-    data = parse_json_response(raw)
+    try:
+        data = parse_json_response(raw)
+    except Exception as e:
+        print(f"  [Interpreter] JSON parse failed ({e}), returning empty findings")
+        data = {}
     data.setdefault("reconciled_findings", [])
     data.setdefault("conflicts_resolved", [])
     data.setdefault("duplicates_removed", 0)
