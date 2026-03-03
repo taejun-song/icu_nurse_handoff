@@ -22,7 +22,7 @@ async def validate(
         "## Baseline Data (Day 1 Context)\n"
         f"{baseline_text}"
     )
-    raw = await call_llm(system_prompt, user_content, max_tokens=2048)
+    raw = await call_llm(system_prompt, user_content)
     try:
         data = parse_json_response(raw)
     except Exception as e:
