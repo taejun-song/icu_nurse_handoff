@@ -85,6 +85,26 @@ def aggregate_by_sheet(
     )
 
 
+def aggregate_by_framework(
+    df: pd.DataFrame, metric_cols: list[str],
+) -> pd.DataFrame:
+    agg_dict = {col: "mean" for col in metric_cols}
+    agg_dict[metric_cols[0]] = ["count", "mean"]
+    grouped = df.groupby("level_1").agg(agg_dict)
+    grouped.columns = [
+        "count" if stat == "count" else f"{col}_mean"
+        for col, stat in grouped.columns
+    ]
+    framework_order = [
+        "Situation", "Assessments by Systems", "Investigation",
+        "Treatments", "Next steps",
+    ]
+    grouped = grouped.reindex(
+        [f for f in framework_order if f in grouped.index],
+    )
+    return grouped.reset_index().rename(columns={"level_1": "framework"})
+
+
 def aggregate_overall(
     df: pd.DataFrame, metric_cols: list[str],
 ) -> dict:
@@ -108,6 +128,7 @@ def save_results(
     overall: dict,
     output_dir: str | Path,
     config: dict | None = None,
+    framework_agg: pd.DataFrame | None = None,
 ) -> Path:
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -136,5 +157,11 @@ def save_results(
         )
     lines.append("\n## Per-Patient Aggregation\n")
     lines.append(sheet_agg.to_markdown(index=False))
+    if framework_agg is not None:
+        framework_agg.to_csv(
+            output_dir / "results_by_framework.csv", index=False, encoding="utf-8-sig",
+        )
+        lines.append("\n## Per-Framework Aggregation\n")
+        lines.append(framework_agg.to_markdown(index=False))
     (output_dir / "report.md").write_text("\n".join(lines), encoding="utf-8")
     return output_dir
