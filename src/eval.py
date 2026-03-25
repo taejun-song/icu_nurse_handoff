@@ -28,7 +28,8 @@ def _handle_empty_pairs(
 def compute_bertscore(
     golds: list[str],
     preds: list[str],
-    model_type: str = "bert-base-multilingual-cased",
+    model_type: str = "xlm-roberta-large",
+    lang: str = "ko",
 ) -> list[float]:
     from bert_score import score as bert_score_fn
     scores, compute_indices = _handle_empty_pairs(golds, preds)
@@ -37,7 +38,7 @@ def compute_bertscore(
     sub_golds = [golds[i] for i in compute_indices]
     sub_preds = [preds[i] for i in compute_indices]
     _, _, f1 = bert_score_fn(
-        sub_preds, sub_golds, model_type=model_type, verbose=False,
+        sub_preds, sub_golds, model_type=model_type, lang=lang, verbose=False,
     )
     for j, idx in enumerate(compute_indices):
         scores[idx] = float(f1[j])
