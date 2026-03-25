@@ -46,8 +46,18 @@ def compute_bertscore(
 
 
 def compute_rouge_l(golds: list[str], preds: list[str]) -> list[float]:
+    from kiwipiepy import Kiwi
     from rouge_score import rouge_scorer
-    scorer = rouge_scorer.RougeScorer(["rougeL"], use_stemmer=False)
+
+    class _KoreanMorphTokenizer:
+        def __init__(self):
+            self._kiwi = Kiwi()
+        def tokenize(self, text):
+            return [t.form for t in self._kiwi.tokenize(text)]
+
+    scorer = rouge_scorer.RougeScorer(
+        ["rougeL"], use_stemmer=False, tokenizer=_KoreanMorphTokenizer(),
+    )
     scores, compute_indices = _handle_empty_pairs(golds, preds)
     for idx in compute_indices:
         result = scorer.score(golds[idx], preds[idx])
@@ -58,7 +68,7 @@ def compute_rouge_l(golds: list[str], preds: list[str]) -> list[float]:
 def compute_sbert_cosine(
     golds: list[str],
     preds: list[str],
-    model_name: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+    model_name: str = "jhgan/ko-sroberta-multitask",
 ) -> list[float]:
     from sentence_transformers import SentenceTransformer
     scores, compute_indices = _handle_empty_pairs(golds, preds)
