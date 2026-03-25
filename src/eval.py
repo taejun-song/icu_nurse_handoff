@@ -49,14 +49,21 @@ def compute_rouge_l(golds: list[str], preds: list[str]) -> list[float]:
     from kiwipiepy import Kiwi
     from rouge_score import rouge_scorer
 
-    class _KoreanMorphTokenizer:
+    _SKIP_TAGS = {
+        "JKS", "JKC", "JKG", "JKO", "JKB", "JKV", "JKQ", "JX", "JC",
+        "EP", "EF", "EC", "ETN", "ETM", "XSN", "XSV", "XSA",
+        "SF", "SP", "SS", "SE", "SO", "SW",
+    }
+
+    class _KoreanContentTokenizer:
         def __init__(self):
             self._kiwi = Kiwi()
         def tokenize(self, text):
-            return [t.form for t in self._kiwi.tokenize(text)]
+            return [t.form for t in self._kiwi.tokenize(text)
+                    if t.tag not in _SKIP_TAGS]
 
     scorer = rouge_scorer.RougeScorer(
-        ["rougeL"], use_stemmer=False, tokenizer=_KoreanMorphTokenizer(),
+        ["rougeL"], use_stemmer=False, tokenizer=_KoreanContentTokenizer(),
     )
     scores, compute_indices = _handle_empty_pairs(golds, preds)
     for idx in compute_indices:
