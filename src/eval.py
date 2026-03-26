@@ -30,29 +30,24 @@ def compute_bertscore(
     preds: list[str],
     model_type: str = "xlm-roberta-large",
     lang: str = "ko",
-) -> list[float]:
+) -> dict[str, list[float]]:
     from bert_score import score as bert_score_fn
-    scores, compute_indices = _handle_empty_pairs(golds, preds)
+    base_scores, compute_indices = _handle_empty_pairs(golds, preds)
+    p_scores = list(base_scores)
+    r_scores = list(base_scores)
+    f1_scores = list(base_scores)
     if not compute_indices:
-        return scores
+        return {"precision": p_scores, "recall": r_scores, "f1": f1_scores}
     sub_golds = [golds[i] for i in compute_indices]
     sub_preds = [preds[i] for i in compute_indices]
-    _, _, f1 = bert_score_fn(
+    p, r, f1 = bert_score_fn(
         sub_preds, sub_golds, model_type=model_type, lang=lang, verbose=False,
     )
     for j, idx in enumerate(compute_indices):
-        scores[idx] = float(f1[j])
-    return scores
-
-
-def compute_rouge_l(golds: list[str], preds: list[str]) -> list[float]:
-    from rouge_score import rouge_scorer
-    scorer = rouge_scorer.RougeScorer(["rougeL"], use_stemmer=False)
-    scores, compute_indices = _handle_empty_pairs(golds, preds)
-    for idx in compute_indices:
-        result = scorer.score(golds[idx], preds[idx])
-        scores[idx] = result["rougeL"].fmeasure
-    return scores
+        p_scores[idx] = float(p[j])
+        r_scores[idx] = float(r[j])
+        f1_scores[idx] = float(f1[j])
+    return {"precision": p_scores, "recall": r_scores, "f1": f1_scores}
 
 
 def compute_sbert_cosine(
@@ -162,7 +157,7 @@ def save_results(
     (output_dir / "results_overall.json").write_text(
         json.dumps(overall_out, ensure_ascii=False, indent=2), encoding="utf-8",
     )
-    metric_cols = [c for c in pairs_df.columns if c.startswith(("bertscore", "rouge", "sbert"))]
+    metric_cols = [c for c in pairs_df.columns if c.startswith(("bertscore", "sbert"))]
     lines = [
         "# Summary Evaluation Report",
         f"\nGenerated: {overall_out['timestamp']}",
